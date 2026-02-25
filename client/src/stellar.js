@@ -29,10 +29,8 @@ export const getBalance = async (publicKey) => {
             throw new Error('Invalid public key');
         }
 
-        // Load account from Horizon
         const account = await server.loadAccount(keyStr);
 
-        // Find native XLM balance
         const xlmBalance = account.balances.find(
             (balance) => balance.asset_type === 'native'
         );
