@@ -18,16 +18,10 @@ Dojo/
 ├── client/              # Frontend application (React + Vite)
 │   ├── src/
 │   │   ├── services/    # Blockchain, AI, deployment services
-│   │   ├── contracts/   # Example smart contracts
+│   │   ├── contracts/   # Example smart contracts (code strings)
 │   │   └── components/  # React components
 │   ├── public/          # Static assets
 │   └── package.json     # Frontend dependencies
-│
-├── contract/            # Soroban smart contract (Rust)
-│   ├── src/
-│   │   └── lib.rs       # Contract source code
-│   ├── Cargo.toml       # Rust dependencies
-│   └── README.md        # Contract documentation
 │
 └── README.md            # This file
 ```
@@ -98,6 +92,8 @@ npm run dev
 ```
 
 Open http://localhost:5173/
+
+**Note**: Example contracts are pre-compiled and stored in `client/src/contracts/examples.js`
 
 ## 🚀 First Deployment
 
