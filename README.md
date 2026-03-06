@@ -17,34 +17,56 @@
 Dojo/
 ├── client/              # Frontend application (React + Vite)
 │   ├── src/
-│   │   ├── services/    # Blockchain, AI, deployment services
-│   │   ├── contracts/   # Example smart contracts (code strings)
-│   │   └── components/  # React components
-│   ├── public/          # Static assets
+│   │   ├── compiler.js  # Compilation interface (precompiled + backend)
+│   │   ├── deploy.js    # Soroban deployment (upload WASM → deploy instance)
+│   │   ├── wallet.js    # Freighter wallet integration
+│   │   ├── ai.js        # Groq AI assistant
+│   │   ├── contracts/   # Example contract source & metadata
+│   │   └── App.jsx      # Main IDE component
+│   ├── public/wasm/     # Pre-compiled example WASM files
 │   └── package.json     # Frontend dependencies
 │
-└── README.md            # This file
+├── server/              # Backend compilation service
+│   ├── index.js         # Express API (POST /compile, GET /health)
+│   ├── build-examples.js# Pre-compile example contracts to WASM
+│   ├── templates/       # Cargo.toml template for Soroban projects
+│   ├── Dockerfile       # Containerized Rust compilation environment
+│   └── package.json     # Backend dependencies
+│
+├── docker-compose.yml   # Full-stack orchestration
+└── README.md
 ```
 
 ## 🚀 Quick Start
 
-### Client (Frontend)
+### Option 1: Local Development
 
 ```bash
+# Frontend
 cd client
 npm install
 npm run dev
+# → http://localhost:5173
+
+# Backend compiler (separate terminal)
+cd server
+npm install
+npm start
+# → http://localhost:3001
 ```
 
-Open http://localhost:5173/
-
-### Contract (Rust)
+### Option 2: Docker
 
 ```bash
-cd contract
-stellar contract build
-stellar contract deploy --wasm target/wasm32-unknown-unknown/release/*.wasm --network testnet
+docker compose up
+# Frontend → http://localhost:5173
+# Compiler → http://localhost:3001
 ```
+
+### Prerequisites for Local Backend
+- **Rust** with `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
+- **stellar-cli** (optional, for WASM optimization): `cargo install --locked stellar-cli --features opt`
+- **Node.js** 18+
 
 ## ✨ Features
 
@@ -74,26 +96,33 @@ Built-in AI assistant powered by Groq (free tier available):
 | Editor | Monaco Editor | Code editing |
 | AI | Groq (Llama 3.1/3.3) | AI assistance |
 | Blockchain | Stellar SDK 14.5.0 | Contract deployment |
-| Contracts | Soroban SDK | Rust smart contracts |
+| Contracts | Soroban SDK 21.7.6 | Rust smart contracts |
 | Wallet | Freighter API 6.0.1 | Transaction signing |
+| Backend | Express + Rust + stellar-cli | Contract compilation |
 | RPC | Soroban Testnet | Contract interaction |
 
 ---
 
 ## 📦 Installation
 
-See [client/README.md](client/README.md) for detailed frontend setup.
-
-**Quick Start:**
+**Frontend only** (examples use pre-compiled WASM):
 ```bash
-cd client
-npm install
-npm run dev
+cd client && npm install && npm run dev
 ```
 
-Open http://localhost:5173/
+**Full stack** (compile any custom contract):
+```bash
+# Terminal 1 - Compiler backend
+cd server && npm install && npm start
 
-**Note**: Example contracts are pre-compiled and stored in `client/src/contracts/examples.js`
+# Terminal 2 - Frontend
+cd client && npm install && npm run dev
+```
+
+**Pre-compile examples** (one-time):
+```bash
+cd server && node build-examples.js
+```
 
 ## 🚀 First Deployment
 

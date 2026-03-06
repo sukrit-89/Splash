@@ -137,7 +137,7 @@ function IDE({ onBackToLanding }) {
 
     try {
       setLoading(true);
-      setDeployStatus({ status: 'pending', message: 'Compiling contract...' });
+      setDeployStatus({ status: 'pending', message: 'Step 1/4: Compiling contract...', progress: 10 });
 
       // Step 1: Compile Rust to WASM
       console.log('Compiling contract:', selectedExample || 'custom');
@@ -148,26 +148,28 @@ function IDE({ onBackToLanding }) {
       }
 
       if (!compilationResult.wasm) {
-        // If no pre-compiled WASM available, show helpful message
         setDeployStatus({
           status: 'error',
-          message: 'Pre-compiled WASM not available for this contract. To deploy custom contracts:\n\n' +
-                   '1. Set up the backend compiler service, or\n' +
-                   '2. Use stellar-cli locally to compile and deploy\n' +
-                   '3. For now, please use the example contracts'
+          message: 'Compilation produced no WASM binary.\n\n' +
+                   'Make sure the compiler service is running:\n' +
+                   '  cd server && npm start'
         });
         setLoading(false);
         return;
       }
 
-      setDeployStatus({ status: 'pending', message: 'Uploading WASM to network...' });
+      const wasmSize = compilationResult.wasm.length;
+      setDeployStatus({ status: 'pending', message: `Step 2/4: Uploading WASM (${(wasmSize / 1024).toFixed(1)} KB)...`, progress: 35 });
       
-      // Step 2: Deploy contract to Stellar
+      // Step 2-3: Deploy contract to Stellar
       console.log('Deploying contract to Stellar Testnet...');
+      setDeployStatus({ status: 'pending', message: 'Step 3/4: Deploying contract instance...', progress: 60 });
       const deployResult = await deployContract(compilationResult.wasm, publicKey);
       
+      setDeployStatus({ status: 'pending', message: 'Step 4/4: Confirming on network...', progress: 85 });
+      
       const example = selectedExample ? getExample(selectedExample) : null;
-      const contractName = (example && example.name) ? example.name : 'AI Generated Contract';
+      const contractName = (example && example.name) ? example.name : 'Custom Contract';
       
       setDeployedContract({
         id: deployResult.contractId,
@@ -179,7 +181,8 @@ function IDE({ onBackToLanding }) {
       setDeployStatus({
         status: 'success',
         message: 'Contract deployed successfully!',
-        contractId: deployResult.contractId
+        contractId: deployResult.contractId,
+        progress: 100
       });
 
       setTransactions([{

@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  compiler:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:4173
+      - COMPILE_TIMEOUT=120000
+      - MAX_CONCURRENT=3
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_COMPILER_URL=http://compiler:3001
+    depends_on:
+      compiler:
+        condition: service_healthy

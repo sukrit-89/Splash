@@ -1,12 +1,13 @@
 /**
  * compiler.js - Soroban Contract Compilation Service
  * 
- * Handles compilation of Rust code to WASM for Soroban contracts
+ * Handles compilation of Rust code to WASM for Soroban contracts.
  * 
- * NOTE: Browser-based Rust compilation is not feasible.
- * This module provides:
- * 1. Pre-compiled WASM for example contracts
- * 2. Interface for backend compilation service (to be implemented)
+ * Two compilation paths:
+ * 1. Pre-compiled WASM for example contracts (from /wasm/ folder)
+ * 2. Backend compilation service for custom contracts (POST /compile)
+ *
+ * Backend: server/index.js (Node.js + cargo + wasm32-unknown-unknown)
  */
 
 /**
@@ -19,20 +20,17 @@ export const CompilationStatus = {
 };
 
 /**
- * Pre-compiled WASM binaries for example contracts
- * 
- * These are mock placeholders. In production:
- * 1. Pre-compile example contracts with stellar-cli
- * 2. Store WASM files in public/ folder
- * 3. Load via fetch() at runtime
+ * Example contracts with pre-compiled WASM files.
+ * Files are loaded from public/wasm/<name>.wasm at runtime.
+ * Build them with: node server/build-examples.js
  */
-const EXAMPLE_WASMS = {
-    counter: null,      // Will load from /wasm/counter.wasm
-    token: null,        // Will load from /wasm/token.wasm
-    escrow: null,       // Will load from /wasm/escrow.wasm
-    voting: null,       // Will load from /wasm/voting.wasm
-    hello_world: null,  // Will load from /wasm/hello_world.wasm
-};
+const EXAMPLE_CONTRACTS = new Set([
+    'counter',
+    'token',
+    'escrow',
+    'voting',
+    'hello_world',
+]);
 
 /**
  * Compile Rust source code to WASM
@@ -45,21 +43,19 @@ export async function compileContract(sourceCode, contractName = null) {
     try {
         console.log('Starting compilation...');
 
-        // Check if this is an example contract with pre-compiled WASM
-        if (contractName && Object.prototype.hasOwnProperty.call(EXAMPLE_WASMS, contractName)) {
+        // Path 1: Try pre-compiled WASM for known example contracts
+        if (contractName && EXAMPLE_CONTRACTS.has(contractName)) {
             console.log('Loading pre-compiled WASM for example:', contractName);
             const wasm = await loadPrecompiledWasm(contractName);
-            
             if (wasm) {
-                return {
-                    status: CompilationStatus.SUCCESS,
-                    wasm,
-                };
+                return { status: CompilationStatus.SUCCESS, wasm };
             }
+            // Pre-compiled not found — fall through to backend
+            console.log('Pre-compiled WASM not found, trying backend compiler...');
         }
 
-        // For custom contracts, we need a backend compilation service
-        console.log('Custom contract detected, using backend compiler...');
+        // Path 2: Compile via backend service (works for ALL contracts)
+        console.log('Sending to backend compiler...');
         return await compileViaBackend(sourceCode);
 
     } catch (error) {
@@ -103,55 +99,47 @@ async function loadPrecompiledWasm(exampleId) {
  * @returns {Promise<{status: string, wasm?: Uint8Array, error?: string}>}
  */
 async function compileViaBackend(sourceCode) {
-    // Backend compilation endpoint (to be implemented)
-    const COMPILER_ENDPOINT = import.meta.env.VITE_COMPILER_URL || 'http://localhost:3001/compile';
+    const baseUrl = import.meta.env.VITE_COMPILER_URL || 'http://localhost:3001';
+    const endpoint = baseUrl.endsWith('/compile') ? baseUrl : `${baseUrl}/compile`;
 
     try {
-        console.log('Sending code to compilation service...');
+        console.log('Sending code to compilation service:', endpoint);
 
-        const response = await fetch(COMPILER_ENDPOINT, {
+        const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                source: sourceCode,
-                optimize: true,
-            }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source: sourceCode }),
         });
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || `Compilation failed: ${response.status}`);
-        }
+        const result = await response.json().catch(() => ({}));
 
-        const result = await response.json();
-
-        if (result.error) {
+        // Server returns {error: "..."} on 4xx/5xx
+        if (!response.ok || result.error) {
             return {
                 status: CompilationStatus.ERROR,
-                error: result.error,
+                error: result.error || `Compilation failed (HTTP ${response.status})`,
             };
         }
 
-        // Convert base64 WASM to Uint8Array
-        const wasmBase64 = result.wasm;
-        const wasmBinary = base64ToUint8Array(wasmBase64);
+        // Success: {wasm: "base64...", size: N, compiledIn: N}
+        const wasmBinary = base64ToUint8Array(result.wasm);
+        console.log(`Compiled successfully: ${wasmBinary.length} bytes in ${result.compiledIn}ms`);
 
         return {
             status: CompilationStatus.SUCCESS,
             wasm: wasmBinary,
+            size: result.size,
+            compiledIn: result.compiledIn,
         };
 
     } catch (error) {
-        // If backend is not available, provide helpful error
-        if (error.message.includes('fetch')) {
+        // Network error — backend not running
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
             return {
                 status: CompilationStatus.ERROR,
-                error: 'Compilation service not available. For custom contracts:\n' +
-                       '1. Use stellar-cli locally to compile\n' +
-                       '2. Or set up the backend compiler service\n' +
-                       '3. For now, use example contracts which deploy instantly',
+                error: 'Compiler service not reachable.\n\n' +
+                       'Start it with: cd server && npm start\n' +
+                       'Or with Docker: docker compose up compiler',
             };
         }
 
@@ -182,20 +170,32 @@ function base64ToUint8Array(base64) {
  * 
  * @returns {Promise<boolean>} True if service is reachable
  */
+/**
+ * Check compiler service status and return details.
+ * @returns {Promise<{available: boolean, rust?: string, stellarCli?: string}>}
+ */
 export async function checkCompilerAvailability() {
-    const COMPILER_ENDPOINT = import.meta.env.VITE_COMPILER_URL || 'http://localhost:3001/health';
+    const baseUrl = import.meta.env.VITE_COMPILER_URL || 'http://localhost:3001';
+    const endpoint = baseUrl.replace(/\/compile$/, '') + '/health';
 
     try {
-        const response = await fetch(COMPILER_ENDPOINT, {
+        const response = await fetch(endpoint, {
             method: 'GET',
-            signal: AbortSignal.timeout(3000), // 3 second timeout
+            signal: AbortSignal.timeout(3000),
         });
 
-        return response.ok;
+        if (!response.ok) return { available: false };
 
-    } catch (error) {
-        console.warn('Compiler service not available:', error.message);
-        return false;
+        const data = await response.json();
+        return {
+            available: !!data.ready,
+            rust: data.rust || null,
+            stellarCli: data.stellarCli || null,
+            activeCompilations: data.activeCompilations || 0,
+        };
+
+    } catch {
+        return { available: false };
     }
 }
 
