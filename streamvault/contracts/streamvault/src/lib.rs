@@ -95,7 +95,9 @@ fn read_next_stream_id(env: &Env) -> u64 {
     let key = DataKey::NextStreamId;
     match env.storage().persistent().get(&key) {
         Some(val) => {
-            env.storage().persistent().extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
             val
         }
         None => 0,
@@ -105,25 +107,30 @@ fn read_next_stream_id(env: &Env) -> u64 {
 fn write_next_stream_id(env: &Env, next_id: u64) {
     let key = DataKey::NextStreamId;
     env.storage().persistent().set(&key, &next_id);
-    env.storage().persistent().extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
 }
 
 fn read_stream(env: &Env, stream_id: u64) -> Stream {
     let key = DataKey::Stream(stream_id);
-    let val = env.storage()
+    let val = env
+        .storage()
         .persistent()
         .get(&key)
         .unwrap_or_else(|| panic_with_error!(env, Error::StreamNotFound));
-    env.storage().persistent().extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
     val
 }
 
 fn write_stream(env: &Env, stream_id: u64, stream: &Stream) {
     let key = DataKey::Stream(stream_id);
+    env.storage().persistent().set(&key, stream);
     env.storage()
         .persistent()
-        .set(&key, stream);
-    env.storage().persistent().extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
+        .extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
 }
 
 fn checked_mul_i128(env: &Env, a: i128, b: i128) -> i128 {
@@ -281,7 +288,11 @@ impl StreamVault {
         write_stream(&env, stream_id, &stream);
 
         let token_client = TokenClient::new(&env, &stream.token);
-        token_client.transfer(&env.current_contract_address(), &stream.recipient, &claimable);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &stream.recipient,
+            &claimable,
+        );
 
         WithdrawalEvent {
             stream_id,
@@ -299,11 +310,15 @@ impl StreamVault {
         if stream.status != StreamStatus::Active {
             panic_with_error!(&env, Error::StreamInactive);
         }
+        if env.ledger().timestamp() >= stream.end_timestamp {
+            panic_with_error!(&env, Error::StreamInactive);
+        }
 
         stream.sender.require_auth();
 
         let recipient_owed = compute_claimable(&env, &stream, env.ledger().timestamp());
-        let total_paid_after_cancel = checked_add_i128(&env, stream.already_withdrawn, recipient_owed);
+        let total_paid_after_cancel =
+            checked_add_i128(&env, stream.already_withdrawn, recipient_owed);
         let sender_refund = checked_sub_i128(&env, stream.total_deposit, total_paid_after_cancel);
 
         stream.already_withdrawn = total_paid_after_cancel;
@@ -312,10 +327,18 @@ impl StreamVault {
 
         let token_client = TokenClient::new(&env, &stream.token);
         if recipient_owed > 0 {
-            token_client.transfer(&env.current_contract_address(), &stream.recipient, &recipient_owed);
+            token_client.transfer(
+                &env.current_contract_address(),
+                &stream.recipient,
+                &recipient_owed,
+            );
         }
         if sender_refund > 0 {
-            token_client.transfer(&env.current_contract_address(), &stream.sender, &sender_refund);
+            token_client.transfer(
+                &env.current_contract_address(),
+                &stream.sender,
+                &sender_refund,
+            );
         }
 
         StreamCancelledEvent {
@@ -333,6 +356,10 @@ impl StreamVault {
 
     pub fn get_stream(env: Env, stream_id: u64) -> Stream {
         read_stream(&env, stream_id)
+    }
+
+    pub fn get_stream_count(env: Env) -> u64 {
+        read_next_stream_id(&env)
     }
 }
 

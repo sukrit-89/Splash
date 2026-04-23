@@ -71,6 +71,7 @@ fn test_create_stream_stores_correctly() {
     // The transferred total_deposit (1000) is computed as rate_per_second (10) * duration_seconds (100).
     let stream_id = client.create_stream(&sender, &recipient, &token_id, &10, &100);
     assert_eq!(stream_id, 0);
+    assert_eq!(client.get_stream_count(), 1);
 
     let stream = client.get_stream(&stream_id);
     assert_eq!(stream.sender, sender);
@@ -175,4 +176,27 @@ fn test_multiple_withdrawals_reach_completion() {
     assert_eq!(stream.already_withdrawn, 200);
     assert_eq!(stream.status, StreamStatus::Completed);
     assert_eq!(token_client.balance(&recipient), 200);
+}
+
+#[test]
+#[should_panic]
+fn test_cancel_after_end_rejects_completed_stream() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_timestamp(5_000);
+
+    let sender = Address::generate(&env);
+    let recipient = Address::generate(&env);
+
+    let token_id = env.register(MockToken, ());
+    let token_client = MockTokenClient::new(&env, &token_id);
+    token_client.mint(&sender, &1_000_000);
+
+    let contract_id = env.register(StreamVault, ());
+    let client = StreamVaultClient::new(&env, &contract_id);
+
+    let stream_id = client.create_stream(&sender, &recipient, &token_id, &2, &100);
+
+    env.ledger().set_timestamp(5_100);
+    client.cancel(&stream_id);
 }
