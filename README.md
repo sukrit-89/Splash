@@ -23,7 +23,7 @@ Splash is a Stellar Soroban payment streaming dApp. It lets a sender lock a fixe
 | CI/CD running | GitHub Actions badge above and latest green run linked above |
 | Mobile responsive screenshot | Embedded below |
 | Dashboard and stream detail screenshots | Embedded below |
-| Contract test evidence | [Testcase.png](Testcase.png), plus Docker result `11 passed; 0 failed` |
+| Contract test evidence | Embedded below, plus Docker result `11 passed; 0 failed` |
 | Minimum 8+ meaningful commits | Repository history contains 20+ commits |
 | Inter-contract calls | Factory-created stream tx `cf382...7abe`; withdrawal tx `f0b4...913b` |
 | Custom token/pool deployed | FLOW token and mock Blend pool addresses listed below |
@@ -69,6 +69,10 @@ These screenshots are embedded directly so reviewers can verify the submission w
 ### Contract Test Evidence
 
 ![Splash contract test evidence](Testcase.png)
+
+### Level 4 Test Evidence
+
+![Splash Level 4 contract test evidence](testcase_l4.png)
 
 The CI/CD proof is the GitHub Actions badge at the top of this README and the latest green run linked in Review Links.
 
@@ -301,6 +305,7 @@ npm run build
 |-- mobile-responsive.jpeg
 |-- splash.png
 |-- Testcase.png
+|-- testcase_l4.png
 |-- frontend
 |   |-- package.json
 |   |-- vite.config.ts
