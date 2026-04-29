@@ -42,6 +42,7 @@ Level 4 adds:
 - Yield-inclusive withdraw/cancel paths when a Blend adapter is configured.
 - Cursor-based Soroban event polling in the frontend activity feed.
 - GitHub Actions CI for contract tests and frontend build.
+- Production readiness polish: Vite vendor chunk splitting plus browser runtime error capture in localStorage for demo debugging.
 
 ## Live Formula
 
