@@ -24,9 +24,20 @@ pub struct Stream {
     pub rate_per_second: i128,
     pub total_deposit: i128,
     pub already_withdrawn: i128,
+    pub flow_burned: i128,
+    pub blend_position: i128,
+    pub yield_earned: i128,
     pub start_timestamp: u64,
     pub end_timestamp: u64,
     pub status: StreamStatus,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VaultConfig {
+    pub blend_pool: Address,
+    pub flow_token: Address,
+    pub fee_bps: u32,
 }
 
 #[contracttype]
@@ -34,6 +45,7 @@ pub struct Stream {
 enum DataKey {
     NextStreamId,
     Stream(u64),
+    VaultConfig,
 }
 
 #[contracterror]
@@ -48,6 +60,12 @@ pub enum Error {
     NoClaimable = 6,
     ArithmeticUnderflow = 7,
     RecipientIsContract = 8,
+    AlreadyInitialized = 9,
+    NotInitialized = 10,
+    InvalidFee = 11,
+    InsufficientFlow = 12,
+    InsufficientBalance = 13,
+    InvalidAmount = 14,
 }
 
 #[contractevent(topics = ["StreamCreated"])]
@@ -69,6 +87,7 @@ pub struct WithdrawalEvent {
     pub stream_id: u64,
     pub recipient: Address,
     pub amount: i128,
+    pub yield_earned: i128,
     pub timestamp: u64,
 }
 
@@ -86,6 +105,19 @@ pub struct StreamCancelledEvent {
 #[contractclient(name = "TokenClient")]
 pub trait TokenContract {
     fn transfer(env: Env, from: Address, to: Address, amount: i128);
+}
+
+#[contractclient(name = "BlendPoolClient")]
+pub trait BlendPoolContract {
+    fn deposit(env: Env, vault: Address, token: Address, amount: i128) -> i128;
+    fn redeem(env: Env, vault: Address, token: Address, btoken_amount: i128) -> i128;
+}
+
+#[contractclient(name = "FlowReceiptClient")]
+pub trait FlowReceiptContract {
+    fn mint(env: Env, to: Address, amount: i128);
+    fn burn(env: Env, from: Address, amount: i128);
+    fn balance(env: Env, id: Address) -> i128;
 }
 
 const BUMP_THRESHOLD: u32 = 30 * 17280; // 30 days
@@ -131,6 +163,10 @@ fn write_stream(env: &Env, stream_id: u64, stream: &Stream) {
     env.storage()
         .persistent()
         .extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
+}
+
+fn read_config(env: &Env) -> Option<VaultConfig> {
+    env.storage().persistent().get(&DataKey::VaultConfig)
 }
 
 fn checked_mul_i128(env: &Env, a: i128, b: i128) -> i128 {
@@ -199,6 +235,32 @@ fn compute_claimable(env: &Env, stream: &Stream, now: u64) -> i128 {
 
 #[contractimpl]
 impl StreamVault {
+    pub fn initialize(env: Env, admin: Address, blend_pool: Address, flow_token: Address, fee_bps: u32) {
+        admin.require_auth();
+        if fee_bps > 10_000 {
+            panic_with_error!(&env, Error::InvalidFee);
+        }
+        let key = DataKey::VaultConfig;
+        if env.storage().persistent().has(&key) {
+            panic_with_error!(&env, Error::AlreadyInitialized);
+        }
+        env.storage().persistent().set(
+            &key,
+            &VaultConfig {
+                blend_pool,
+                flow_token,
+                fee_bps,
+            },
+        );
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, BUMP_THRESHOLD, BUMP_AMOUNT);
+    }
+
+    pub fn get_config(env: Env) -> Option<VaultConfig> {
+        read_config(&env)
+    }
+
     pub fn create_stream(
         env: Env,
         sender: Address,
@@ -239,14 +301,31 @@ impl StreamVault {
             rate_per_second,
             total_deposit,
             already_withdrawn: 0,
+            flow_burned: 0,
+            blend_position: 0,
+            yield_earned: 0,
             start_timestamp,
             end_timestamp,
             status: StreamStatus::Active,
         };
-        write_stream(&env, stream_id, &stream);
 
         let token_client = TokenClient::new(&env, &token);
         token_client.transfer(&sender, &env.current_contract_address(), &total_deposit);
+
+        let mut stream = stream;
+        if let Some(config) = read_config(&env) {
+            token_client.transfer(&env.current_contract_address(), &config.blend_pool, &total_deposit);
+            let blend_client = BlendPoolClient::new(&env, &config.blend_pool);
+            stream.blend_position = blend_client.deposit(
+                &env.current_contract_address(),
+                &token,
+                &total_deposit,
+            );
+
+            let flow_client = FlowReceiptClient::new(&env, &config.flow_token);
+            flow_client.mint(&recipient, &total_deposit);
+        }
+        write_stream(&env, stream_id, &stream);
 
         StreamCreatedEvent {
             stream_id,
@@ -281,6 +360,35 @@ impl StreamVault {
             panic_with_error!(&env, Error::NoClaimable);
         }
 
+        let mut transfer_amount = claimable;
+        let mut yield_earned = 0;
+        if let Some(config) = read_config(&env) {
+            let flow_client = FlowReceiptClient::new(&env, &config.flow_token);
+            if flow_client.balance(&stream.recipient) < claimable {
+                panic_with_error!(&env, Error::InsufficientFlow);
+            }
+            flow_client.burn(&stream.recipient, &claimable);
+            stream.flow_burned = checked_add_i128(&env, stream.flow_burned, claimable);
+
+            let blend_client = BlendPoolClient::new(&env, &config.blend_pool);
+            let redeemed = blend_client.redeem(
+                &env.current_contract_address(),
+                &stream.token,
+                &claimable,
+            );
+            if redeemed > claimable {
+                let gross_yield = checked_sub_i128(&env, redeemed, claimable);
+                let fee = gross_yield
+                    .checked_mul(config.fee_bps as i128)
+                    .and_then(|v| v.checked_div(10_000))
+                    .unwrap_or_else(|| panic_with_error!(&env, Error::Overflow));
+                yield_earned = checked_sub_i128(&env, gross_yield, fee);
+                transfer_amount = checked_add_i128(&env, claimable, yield_earned);
+                stream.yield_earned = checked_add_i128(&env, stream.yield_earned, yield_earned);
+            }
+            stream.blend_position = checked_sub_i128(&env, stream.blend_position, claimable);
+        }
+
         stream.already_withdrawn = checked_add_i128(&env, stream.already_withdrawn, claimable);
         if stream.already_withdrawn >= stream.total_deposit {
             stream.status = StreamStatus::Completed;
@@ -291,18 +399,19 @@ impl StreamVault {
         token_client.transfer(
             &env.current_contract_address(),
             &stream.recipient,
-            &claimable,
+            &transfer_amount,
         );
 
         WithdrawalEvent {
             stream_id,
             recipient: stream.recipient,
-            amount: claimable,
+            amount: transfer_amount,
+            yield_earned,
             timestamp: env.ledger().timestamp(),
         }
         .publish(&env);
 
-        claimable
+        transfer_amount
     }
 
     pub fn cancel(env: Env, stream_id: u64) -> (i128, i128) {
@@ -323,21 +432,56 @@ impl StreamVault {
 
         stream.already_withdrawn = total_paid_after_cancel;
         stream.status = StreamStatus::Cancelled;
-        write_stream(&env, stream_id, &stream);
 
         let token_client = TokenClient::new(&env, &stream.token);
+        let mut recipient_transfer = recipient_owed;
+        let mut sender_transfer = sender_refund;
+        if let Some(config) = read_config(&env) {
+            let flow_client = FlowReceiptClient::new(&env, &config.flow_token);
+            let flow_to_burn = checked_sub_i128(&env, stream.total_deposit, stream.flow_burned);
+            if flow_to_burn > 0 {
+                flow_client.burn(&stream.recipient, &flow_to_burn);
+                stream.flow_burned = checked_add_i128(&env, stream.flow_burned, flow_to_burn);
+            }
+
+            let blend_client = BlendPoolClient::new(&env, &config.blend_pool);
+            let redeemed = blend_client.redeem(
+                &env.current_contract_address(),
+                &stream.token,
+                &stream.blend_position,
+            );
+            if redeemed > stream.blend_position {
+                let gross_yield = checked_sub_i128(&env, redeemed, stream.blend_position);
+                let recipient_basis = recipient_owed;
+                let sender_basis = sender_refund;
+                let remaining_basis = checked_add_i128(&env, recipient_basis, sender_basis);
+                if remaining_basis > 0 {
+                    let recipient_yield = gross_yield
+                        .checked_mul(recipient_basis)
+                        .and_then(|v| v.checked_div(remaining_basis))
+                        .unwrap_or_else(|| panic_with_error!(&env, Error::Overflow));
+                    let sender_yield = checked_sub_i128(&env, gross_yield, recipient_yield);
+                    recipient_transfer = checked_add_i128(&env, recipient_transfer, recipient_yield);
+                    sender_transfer = checked_add_i128(&env, sender_transfer, sender_yield);
+                    stream.yield_earned = checked_add_i128(&env, stream.yield_earned, gross_yield);
+                }
+            }
+            stream.blend_position = 0;
+        }
+        write_stream(&env, stream_id, &stream);
+
         if recipient_owed > 0 {
             token_client.transfer(
                 &env.current_contract_address(),
                 &stream.recipient,
-                &recipient_owed,
+                &recipient_transfer,
             );
         }
         if sender_refund > 0 {
             token_client.transfer(
                 &env.current_contract_address(),
                 &stream.sender,
-                &sender_refund,
+                &sender_transfer,
             );
         }
 

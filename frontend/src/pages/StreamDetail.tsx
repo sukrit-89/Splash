@@ -109,6 +109,9 @@ export function StreamDetail({ streamId }: StreamDetailProps) {
         {[
           ["Total Deposit", `${stream.totalDeposit.toLocaleString("en-US")} ${stream.token}`],
           ["Already Withdrawn", `${stream.alreadyWithdrawn.toLocaleString("en-US")} ${stream.token}`],
+          ["Blend Position", `${stream.blendPosition.toLocaleString("en-US")} bToken`],
+          ["FLOW Burned", `${stream.flowBurned.toLocaleString("en-US")} FLOW`],
+          ["Yield Earned", `${stream.yieldEarned.toLocaleString("en-US")} ${stream.token}`],
           ["Remaining", `${(stream.totalDeposit - stream.alreadyWithdrawn - getClaimable(stream)).toFixed(2)} ${stream.token}`],
           ["Flow Rate", `${stream.ratePerSecond.toFixed(6)} ${stream.token}/s`],
           ["Start Time", formatUtcDate(stream.startTimestamp)],

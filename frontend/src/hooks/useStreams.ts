@@ -33,6 +33,9 @@ export function useStreams() {
       readCachedStreams()
         .map((stream) => ({
           ...stream,
+          flowBurned: stream.flowBurned ?? 0,
+          blendPosition: stream.blendPosition ?? 0,
+          yieldEarned: stream.yieldEarned ?? 0,
           role: roleFor(stream, address),
           lifetimeReceived:
             stream.recipient === address

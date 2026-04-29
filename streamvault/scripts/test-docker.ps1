@@ -12,11 +12,11 @@ $cmd = @(
   "-w", "/work",
   "rust:1-bullseye",
   "/usr/local/cargo/bin/cargo", "test",
-  "-p", "streamvault",
+  "--workspace",
   "--target", "x86_64-unknown-linux-gnu"
 )
 
-Write-Host "Running cached Docker tests for StreamVault..." -ForegroundColor Cyan
+Write-Host "Running cached Docker tests for Splash contracts..." -ForegroundColor Cyan
 docker @cmd
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Docker tests failed with exit code $LASTEXITCODE"

@@ -7,6 +7,8 @@ import {
   invokeContract,
   parseSorobanError,
   simulateContract,
+  streamFactoryContractId,
+  streamVaultContractId,
   toContractAmount,
   tokenContractFor,
   tokenContracts,
@@ -49,6 +51,9 @@ interface ContractStream {
   rate_per_second: bigint | number | string;
   total_deposit: bigint | number | string;
   already_withdrawn: bigint | number | string;
+  flow_burned?: bigint | number | string;
+  blend_position?: bigint | number | string;
+  yield_earned?: bigint | number | string;
   start_timestamp: bigint | number | string;
   end_timestamp: bigint | number | string;
   status: unknown;
@@ -92,6 +97,9 @@ function nativeStreamToStream(
     totalDeposit: fromContractAmount(native.total_deposit),
     ratePerSecond: fromContractAmount(native.rate_per_second),
     alreadyWithdrawn: fromContractAmount(native.already_withdrawn),
+    flowBurned: fromContractAmount(native.flow_burned ?? 0),
+    blendPosition: fromContractAmount(native.blend_position ?? 0),
+    yieldEarned: fromContractAmount(native.yield_earned ?? 0),
     lifetimeReceived:
       recipient === walletAddress ? fromContractAmount(native.already_withdrawn) : 0,
     startTimestamp,
@@ -165,14 +173,24 @@ export function useCreateStream() {
       const result = await invokeContract(
         address,
         "create_stream",
-        [
-          addressScVal(address),
-          addressScVal(input.recipient),
-          addressScVal(tokenAddress),
-          i128ScVal(ratePerSecond),
-          u64ScVal(input.durationSeconds),
-        ],
+        streamFactoryContractId
+          ? [
+              addressScVal(address),
+              addressScVal(streamVaultContractId),
+              addressScVal(input.recipient),
+              addressScVal(tokenAddress),
+              i128ScVal(ratePerSecond),
+              u64ScVal(input.durationSeconds),
+            ]
+          : [
+              addressScVal(address),
+              addressScVal(input.recipient),
+              addressScVal(tokenAddress),
+              i128ScVal(ratePerSecond),
+              u64ScVal(input.durationSeconds),
+            ],
         signTransaction,
+        streamFactoryContractId,
       );
       const stream = await loadStreamFromContract(address, streamId);
 

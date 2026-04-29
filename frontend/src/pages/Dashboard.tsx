@@ -6,6 +6,7 @@ import { StreamTable } from "../components/stream/StreamTable";
 import { ConfirmationModal } from "../components/ui/ConfirmationModal";
 import { TokenAmount } from "../components/ui/TokenAmount";
 import { useCancelStream, useWithdraw } from "../hooks/useStreamActions";
+import { useContractEvents } from "../hooks/useContractEvents";
 import { useStreams } from "../hooks/useStreams";
 import { getClaimable } from "../lib/formatters";
 import { Stream } from "../types/stream";
@@ -57,6 +58,7 @@ function SummaryCard({
 
 export function Dashboard() {
   const { activeStreams, activity, totals } = useStreams();
+  const { isReconnecting } = useContractEvents();
   const [pendingCancel, setPendingCancel] = useState<Stream | null>(null);
   const { withdraw } = useWithdraw();
   const { cancelStream } = useCancelStream();
@@ -114,6 +116,11 @@ export function Dashboard() {
             </h2>
             <Activity className="h-4 w-4 text-[var(--text-muted)]" />
           </div>
+          {isReconnecting ? (
+            <p className="mb-2 rounded border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2 text-xs text-[var(--status-pending)]">
+              Event feed reconnecting...
+            </p>
+          ) : null}
           <ActivityFeed activity={activity} />
         </section>
       </div>

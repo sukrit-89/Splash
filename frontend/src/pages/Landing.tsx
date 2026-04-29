@@ -133,15 +133,15 @@ export function Landing() {
           />
         </div>
         <div className="relative z-10 mx-auto max-w-3xl">
-          <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-[var(--accent-border)] bg-[var(--accent-dim)] px-3 py-1 font-mono text-[11px] tracking-wide text-[var(--accent)]">
-            Level 3 MVP / StreamVault on Testnet
+          <div className="mb-6 inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--accent-border)] bg-[var(--accent-dim)] px-3 py-1 font-mono text-[11px] tracking-wide text-[var(--accent)]">
+            Level 4 / Factory + FLOW on Testnet
           </div>
-          <h1 className="text-balance text-[clamp(48px,7vw,80px)] font-light leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)]">
+          <h1 className="text-balance text-[40px] font-light leading-[1.08] text-[var(--text-primary)] sm:text-[56px] lg:text-[80px]">
             Get Paid
             <br />
             By The <span className="font-semibold">Second.</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-lg leading-[1.6] text-[var(--text-secondary)]">
+          <p className="mx-auto mt-5 max-w-[320px] text-base leading-[1.6] text-[var(--text-secondary)] sm:max-w-xl sm:text-lg">
             SPLASH turns time into money. Create a real-time payment stream and
             watch your balance grow, every second you work.
           </p>
@@ -425,9 +425,9 @@ export function Landing() {
           <div>
             <SplashLogo />
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
-              Level 3 Stellar Soroban payment streaming MVP. StreamVault locks
-              funds, accrues balances per second, and supports recipient
-              withdrawal plus sender cancellation on testnet.
+              Level 4 Stellar Soroban payment streaming demo. StreamFactory
+              creates streams, FLOW tracks receipts, and the mock Blend adapter
+              proves yield-layer inter-contract wiring on testnet.
             </p>
             <p className="mt-5 font-mono text-[11px] uppercase tracking-widest text-[var(--text-muted)]">
               Stellar Rise In Belt Submission
@@ -448,7 +448,7 @@ export function Landing() {
               <div>
                 <dt className="text-[var(--text-muted)]">StreamVault</dt>
                 <dd className="mt-1 break-all font-mono text-[var(--text-primary)]">
-                  CCE2PSOOTQWLNCY3RFJOSI7RNIRVQFE64L33KJNBXTXOW63YVRRQLFA6
+                  CBPNO56NJ4SI5UDJWVRLWVSCDTSMRDZCEPFNEPLRD4XTABYB6RUIBZQR
                 </dd>
               </div>
             </dl>

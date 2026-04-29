@@ -24,6 +24,9 @@ export interface Stream {
   totalDeposit: number;
   ratePerSecond: number;
   alreadyWithdrawn: number;
+  flowBurned: number;
+  blendPosition: number;
+  yieldEarned: number;
   lifetimeReceived: number;
   startTimestamp: number;
   endTimestamp: number;

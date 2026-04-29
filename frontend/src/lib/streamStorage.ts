@@ -11,6 +11,7 @@ import {
 const streamStorageKey = "splash_streams";
 const withdrawalStorageKey = "splash_withdrawals";
 const activityStorageKey = "splash_activity";
+const eventCursorStorageKey = "splash_event_cursor";
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -62,9 +63,20 @@ export function readCachedActivity(): ActivityEvent[] {
 }
 
 export function addCachedActivity(event: ActivityEvent) {
-  const next = [event, ...readCachedActivity()];
+  const next = [
+    event,
+    ...readCachedActivity().filter((item) => item.id !== event.id),
+  ];
   writeJson(activityStorageKey, next);
   window.dispatchEvent(new Event("splash:streams"));
+}
+
+export function readEventCursor(): string | null {
+  return readJson<string | null>(eventCursorStorageKey, null);
+}
+
+export function writeEventCursor(cursor: string | null) {
+  writeJson(eventCursorStorageKey, cursor);
 }
 
 export function roleFor(stream: Stream, walletAddress: string | null): StreamRole {

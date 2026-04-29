@@ -18,6 +18,8 @@ export const networkPassphrase = import.meta.env
   .VITE_STELLAR_NETWORK_PASSPHRASE as string || Networks.TESTNET;
 export const streamVaultContractId = import.meta.env
   .VITE_STREAMVAULT_CONTRACT_ID as string;
+export const streamFactoryContractId = import.meta.env
+  .VITE_STREAMFACTORY_CONTRACT_ID as string | undefined;
 export const tokenContracts = {
   USDC: import.meta.env.VITE_USDC_TOKEN_CONTRACT_ID as string,
   XLM: import.meta.env.VITE_XLM_TOKEN_CONTRACT_ID as string,
@@ -86,15 +88,20 @@ export function u64ScVal(value: bigint | number): xdr.ScVal {
   });
 }
 
+function contractFor(contractId?: string): Contract {
+  return new Contract(
+    requireConfig(contractId ?? streamVaultContractId, "contract id"),
+  );
+}
+
 export async function simulateContract<T>(
   sourceAddress: string,
   method: string,
   args: xdr.ScVal[],
+  contractId?: string,
 ): Promise<T> {
   const source = await server.getAccount(sourceAddress);
-  const contract = new Contract(
-    requireConfig(streamVaultContractId, "VITE_STREAMVAULT_CONTRACT_ID"),
-  );
+  const contract = contractFor(contractId);
   const tx = new TransactionBuilder(source, {
     fee: BASE_FEE,
     networkPassphrase,
@@ -119,11 +126,10 @@ export async function invokeContract(
   method: string,
   args: xdr.ScVal[],
   signTransaction: (transactionXdr: string) => Promise<string>,
+  contractId?: string,
 ): Promise<ConfirmedTransaction> {
   const source = await server.getAccount(sourceAddress);
-  const contract = new Contract(
-    requireConfig(streamVaultContractId, "VITE_STREAMVAULT_CONTRACT_ID"),
-  );
+  const contract = contractFor(contractId);
   const rawTx = new TransactionBuilder(source, {
     fee: BASE_FEE,
     networkPassphrase,
@@ -164,4 +170,51 @@ export async function invokeContract(
   }
 
   throw new Error(`Timed out waiting for transaction ${sent.hash}`);
+}
+
+export interface ContractEvent {
+  id: string;
+  txHash: string;
+  ledger: number;
+  timestamp: number;
+  topic: string;
+  value: unknown;
+  cursor: string;
+}
+
+export async function getContractEvents(cursor: string | null): Promise<{
+  cursor: string | null;
+  events: ContractEvent[];
+}> {
+  const contractIds = [
+    streamVaultContractId,
+    streamFactoryContractId,
+  ].filter(Boolean) as string[];
+  if (contractIds.length === 0) {
+    return { cursor: null, events: [] };
+  }
+
+  const response = await server.getEvents({
+    cursor: cursor ?? undefined,
+    filters: [
+      {
+        type: "contract",
+        contractIds,
+      },
+    ],
+    limit: 20,
+  });
+
+  return {
+    cursor: response.cursor ?? null,
+    events: response.events.map((event) => ({
+      id: event.id,
+      txHash: event.txHash,
+      ledger: event.ledger,
+      timestamp: Math.floor(new Date(event.ledgerClosedAt).getTime() / 1000),
+      topic: event.topic[0] ? String(scValToNative(event.topic[0])) : "contract",
+      value: scValToNative(event.value),
+      cursor: event.pagingToken,
+    })),
+  };
 }

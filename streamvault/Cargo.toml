@@ -2,6 +2,9 @@
 resolver = "2"
 members = [
   "contracts/streamvault",
+  "contracts/streamfactory",
+  "contracts/flowtoken",
+  "contracts/mockblend",
 ]
 
 [workspace.dependencies]

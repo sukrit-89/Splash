@@ -13,7 +13,8 @@ export function WalletButton() {
   if (!isConnected || !address) {
     return (
       <Button isLoading={isConnecting} onClick={connect} size="sm">
-        Connect Wallet
+        <span className="sm:hidden">Connect</span>
+        <span className="hidden sm:inline">Connect Wallet</span>
       </Button>
     );
   }

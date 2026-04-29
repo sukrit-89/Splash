@@ -1,7 +1,7 @@
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { useCreateStream } from "../hooks/useStreamActions";
-import { isValidStellarAddress } from "../lib/stellar";
+import { isValidStellarAddress, streamFactoryContractId } from "../lib/stellar";
 import { navigate } from "../router";
 import { TokenSymbol } from "../types/stream";
 import { Button } from "../components/ui/Button";
@@ -217,7 +217,7 @@ export function CreateStream() {
             ["Total Deposit", `${totalDeposit.toFixed(2)} ${token}`],
             ["Flow Rate", `${ratePerSecond.toFixed(6)} ${token}/sec`],
             ["Duration", `${totalDays} days`],
-            ["Contract", "StreamVault testnet"],
+            ["Contract", streamFactoryContractId ? "StreamFactory + Vault" : "StreamVault testnet"],
           ].map(([label, value]) => (
             <div className="flex justify-between py-1 text-xs" key={label}>
               <span className="text-[var(--text-muted)]">{label}</span>

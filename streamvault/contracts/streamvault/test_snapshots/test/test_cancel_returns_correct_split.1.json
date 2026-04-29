@@ -291,10 +291,26 @@
                   },
                   {
                     "key": {
+                      "symbol": "blend_position"
+                    },
+                    "val": {
+                      "i128": "0"
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "end_timestamp"
                     },
                     "val": {
                       "u64": "3100"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "flow_burned"
+                    },
+                    "val": {
+                      "i128": "0"
                     }
                   },
                   {
@@ -355,6 +371,14 @@
                     },
                     "val": {
                       "i128": "1000"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "yield_earned"
+                    },
+                    "val": {
+                      "i128": "0"
                     }
                   }
                 ]
