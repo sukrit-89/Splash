@@ -2,51 +2,99 @@
 
 [![splash CI](https://github.com/sukrit-89/Splash/actions/workflows/ci.yml/badge.svg)](https://github.com/sukrit-89/Splash/actions/workflows/ci.yml)
 
-Splash is a Stellar Soroban payment streaming dApp with the Level 4 architecture now in code: `StreamVault`, `StreamFactory`, a `FLOW` receipt token, optional Blend-pool adapter hooks, cursor-based event polling, and a React + Freighter frontend.
+Splash is a Stellar Soroban payment streaming dApp. It lets a sender lock a fixed deposit, stream value to a recipient per second, and let the recipient withdraw accrued funds at any time. Level 4 extends the Level 3 StreamVault MVP with a factory contract, a FLOW receipt token, a mock Blend-style pool adapter, real-time event polling, CI/CD, mobile responsiveness, and production-readiness polish.
 
-![Splash protocol preview](splash.png)
+![Splash desktop preview](splash.png)
 
 ## Review Links
 
-- **Live demo:** <https://splash-self.vercel.app/>
-- **Demo video:** <https://youtu.be/ziJpZYw0jEw>
-- **Repository:** <https://github.com/sukrit-89/Splash>
-
-## Submission Links
-
-| Item | Link / Evidence |
+| Item | Link |
 | --- | --- |
-| Test output screenshot | [Testcase.png](Testcase.png) |
+| Live demo | <https://splash-self.vercel.app/> |
+| Repository | <https://github.com/sukrit-89/Splash> |
+| Demo video | <https://youtu.be/ziJpZYw0jEw> |
+| Latest CI run | <https://github.com/sukrit-89/Splash/actions/runs/25113438677> |
+
+## Submission Evidence
+
+| Requirement | Evidence |
+| --- | --- |
+| Public GitHub repository | <https://github.com/sukrit-89/Splash> |
+| Live deployed app | <https://splash-self.vercel.app/> |
+| CI/CD running | GitHub Actions badge above and latest green run linked above |
 | Mobile responsive screenshot | [mobile-responsive.png](mobile-responsive.png) |
-| Contract tests | `11 passed; 0 failed` |
-| Testnet StreamVault | `CBPNO56NJ4SI5UDJWVRLWVSCDTSMRDZCEPFNEPLRD4XTABYB6RUIBZQR` |
-| Testnet StreamFactory | `CD6FF6PO7CM3U27JVGVGGLLN7XAUCDJMZGAHBLZQPVXKIRXC2LF3SW4R` |
-| Testnet FLOW token | `CDSUPZQLP6FRNQMDYZP53QLOS3ITZLVOVJAAZ3RPBZ43K66532PQ5HHH` |
-| Testnet mock Blend pool | `CCXLDFFM7326GE7UOEN7TW7FJW2KSBO34KDAUDMGLV6EZOEJFNW5Z7RO` |
+| Contract test evidence | [Testcase.png](Testcase.png), plus Docker result `11 passed; 0 failed` |
+| Minimum 8+ meaningful commits | Repository history contains 20+ commits |
+| Inter-contract calls | Factory-created stream tx `cf382...7abe`; withdrawal tx `f0b4...913b` |
+| Custom token/pool deployed | FLOW token and mock Blend pool addresses listed below |
 
-## What It Does
+## What Changed From Level 3
 
-Splash turns a fixed payment deposit into a real-time stream.
+| Area | Level 3 | Level 4 |
+| --- | --- | --- |
+| Contract architecture | Single `StreamVault` contract | `StreamVault` plus `StreamFactory`, `FLOW`, and `MockBlendPool` |
+| Streams per wallet | Core stream lifecycle | Factory registry supports multiple streams by sender/recipient |
+| Inter-contract calls | Token transfer calls only | Factory calls Vault; Vault calls token, FLOW, and mock Blend pool |
+| Receipt asset | None | `FLOW` SEP-41-style receipt token with mint, burn, transfer, balance, metadata |
+| Yield layer | Out of scope | Mock Blend-style pool adapter proves deposit/redeem mechanics |
+| Events | Contract emits lifecycle events | Frontend polls Soroban events with cursor persistence |
+| Frontend | Create stream, dashboard, live balance | Multi-stream dashboard, activity feed, Level 4 contract wiring, mobile polish |
+| Production readiness | Manual build/deploy | GitHub Actions CI, vendor chunk splitting, runtime error capture |
+| Tests | 5 contract tests | 11 Dockerized workspace tests across all contracts |
 
-1. The sender creates a stream with recipient, token, rate per second, and duration.
-2. The contract locks the full stream deposit from the sender.
-3. The recipient's claimable amount grows as ledger time passes.
-4. The recipient can withdraw accrued funds.
-5. The sender can cancel early, paying the recipient what has accrued and refunding the unstreamed balance.
+## Screenshots To Include For Review
 
-Level 4 adds:
+Use these in the submission or demo evidence:
 
-- `StreamFactory` registry for multiple streams per wallet.
-- Optional `StreamVault.initialize(...)` configuration for Blend pool + FLOW token integration.
-- `FLOW` SEP-41-style receipt token with `name`, `symbol`, `decimals`, `balance`, `transfer`, `mint`, and `burn`.
-- Yield-inclusive withdraw/cancel paths when a Blend adapter is configured.
-- Cursor-based Soroban event polling in the frontend activity feed.
-- GitHub Actions CI for contract tests and frontend build.
-- Production readiness polish: Vite vendor chunk splitting plus browser runtime error capture in localStorage for demo debugging.
+1. **Desktop product preview:** [splash.png](splash.png)  
+   Shows the main visual identity and live-streaming product moment.
 
-## Live Formula
+2. **Mobile responsive proof:** [mobile-responsive.png](mobile-responsive.png)  
+   Shows the app at a mobile viewport with Level 4 messaging and no layout overflow.
 
-The product's core behavior is the claimable balance formula:
+3. **Contract test proof:** [Testcase.png](Testcase.png)  
+   Shows prior test output evidence. The current Docker suite now verifies 11 tests.
+
+4. **CI/CD proof:** the README badge or latest run page  
+   <https://github.com/sukrit-89/Splash/actions/runs/25113438677>
+
+5. **Optional demo screenshots:** Dashboard and stream detail after wallet connection  
+   These are useful in a slide deck or demo video, but the required README evidence is already covered by the mobile screenshot and CI badge.
+
+## Product Flow
+
+1. Sender connects Freighter on Stellar testnet.
+2. Sender creates a stream through `StreamFactory`.
+3. `StreamFactory` invokes `StreamVault.create_stream`.
+4. `StreamVault` locks the stream deposit using the token contract.
+5. `StreamVault` deposits the locked amount into `MockBlendPool`.
+6. `StreamVault` mints `FLOW` receipt tokens to the recipient.
+7. Recipient withdraws accrued funds.
+8. `StreamVault` validates/burns FLOW and redeems from the pool before paying the recipient.
+
+## Level 4 Architecture
+
+```text
+Freighter Wallet
+   |
+   | signs Soroban transactions
+   v
+React + Vite Frontend
+   |
+   | Stellar RPC simulation, submission, polling, event cursor
+   v
+StreamFactory
+   |
+   | inter-contract call #1
+   v
+StreamVault
+   |                  |                  |
+   | token transfer   | FLOW mint/burn   | deposit/redeem
+   v                  v                  v
+XLM / SAC Token     FLOW Token       MockBlendPool
+```
+
+## Core Formula
 
 ```text
 total_deposit = rate_per_second * duration_seconds
@@ -56,12 +104,6 @@ accrued = elapsed * rate_per_second
 claimable = min(accrued - already_withdrawn, total_deposit - already_withdrawn)
 ```
 
-When the recipient withdraws:
-
-```text
-already_withdrawn = already_withdrawn + claimable
-```
-
 When the sender cancels:
 
 ```text
@@ -69,100 +111,10 @@ recipient_owed = claimable at cancel time
 sender_refund = total_deposit - already_withdrawn - recipient_owed
 ```
 
-## Architecture
+## Deployed Testnet Contracts
 
-```text
-Freighter wallet
-   |
-   | signs prepared Soroban transactions
-   v
-React + Vite frontend
-   |
-   | Stellar RPC simulation, assembly, submission, polling
-   v
-StreamVault contract on Stellar testnet
-   |
-   | optional calls
-   v
-StreamFactory registry + Blend adapter + FLOW token
-   |
-   v
-Stellar Asset Contract token / testnet mock token
-```
-
-## Repository Structure
-
-```text
-.
-|-- README.md
-|-- Testcase.png
-|-- formulas.md
-|-- frontend
-|   |-- package.json
-|   |-- .env.example
-|   |-- src
-|   |   |-- components
-|   |   |-- hooks
-|   |   |-- lib
-|   |   |-- pages
-|   |   `-- types
-|   `-- vite.config.ts
-`-- streamvault
-    |-- Cargo.toml
-    |-- README.md
-    |-- scripts
-    |   `-- test-docker.ps1
-    `-- contracts
-        `-- streamvault
-            |-- streamvault
-            |   |-- Cargo.toml
-            |   `-- src
-            |-- streamfactory
-            |   |-- Cargo.toml
-            |   `-- src
-            `-- flowtoken
-                |-- Cargo.toml
-                `-- src
-```
-
-## Contract Interface
-
-| Function | Auth | Description |
-| --- | --- | --- |
-| `create_stream(sender, recipient, token, rate_per_second, duration_seconds)` | Sender | Locks the stream deposit and stores stream metadata. |
-| `withdraw(stream_id)` | Recipient | Transfers currently claimable funds to the recipient. |
-| `cancel(stream_id)` | Sender | Pays accrued funds to the recipient and refunds the unstreamed amount. |
-| `get_claimable(stream_id)` | None | Returns the currently withdrawable amount without mutating state. |
-| `get_stream(stream_id)` | None | Returns all stream metadata. |
-| `get_stream_count()` | None | Returns the next stream id. |
-| `initialize(admin, blend_pool, flow_token, fee_bps)` | Admin | Enables Level 4 yield + FLOW hooks for new streams. |
-
-### StreamFactory
-
-| Function | Auth | Description |
-| --- | --- | --- |
-| `create_stream(sender, vault, recipient, token, rate_per_second, duration_seconds)` | Sender | Creates a vault stream through an inter-contract call and indexes it. |
-| `get_streams_by_sender(sender)` | None | Returns stream IDs created by the sender. |
-| `get_streams_by_recipient(recipient)` | None | Returns stream IDs for the recipient. |
-
-### FLOW Token
-
-| Function | Auth | Description |
-| --- | --- | --- |
-| `initialize(admin)` | None, one-time | Sets the vault/admin address. |
-| `mint(to, amount)` | Admin | Mints FLOW receipts. |
-| `burn(from, amount)` | Admin | Burns FLOW receipts during withdrawal/cancel. |
-| `transfer(from, to, amount)` | Holder | Transfers FLOW. |
-| `balance(id)` | None | Returns FLOW balance. |
-| `name()`, `symbol()`, `decimals()` | None | Token metadata. |
-
-## Testnet Configuration
-
-| Item | Value |
+| Contract | Address |
 | --- | --- |
-| Network | Stellar testnet |
-| Network passphrase | `Test SDF Network ; September 2015` |
-| RPC URL | `https://soroban-testnet.stellar.org` |
 | StreamVault | `CBPNO56NJ4SI5UDJWVRLWVSCDTSMRDZCEPFNEPLRD4XTABYB6RUIBZQR` |
 | StreamFactory | `CD6FF6PO7CM3U27JVGVGGLLN7XAUCDJMZGAHBLZQPVXKIRXC2LF3SW4R` |
 | FLOW token | `CDSUPZQLP6FRNQMDYZP53QLOS3ITZLVOVJAAZ3RPBZ43K66532PQ5HHH` |
@@ -170,9 +122,9 @@ Stellar Asset Contract token / testnet mock token
 | Native XLM SAC | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` |
 | Demo USDC SAC | `CBR7ZWCNWEX43SLWEQCMJBXZLBP5U46EV2DQ2EKYED65DJKL4SX6TRRF` |
 
-The demo USDC contract is for testnet demonstration only. It is not production Circle USDC.
+The mock Blend pool is a testnet adapter used to prove the production integration shape. It exposes the same high-level mechanics Splash needs for Level 4: deposit, position tracking, and redeem before payout.
 
-## Level 4 Transaction Evidence
+## Transaction Evidence
 
 | Action | Transaction |
 | --- | --- |
@@ -186,7 +138,112 @@ The demo USDC contract is for testnet demonstration only. It is not production C
 | Yield-layer redeem withdrawal | [`f0b4d9fe5fda77ecc4fea233cd1775516c28f2662af32796d960e8b52857913b`](https://stellar.expert/explorer/testnet/tx/f0b4d9fe5fda77ecc4fea233cd1775516c28f2662af32796d960e8b52857913b) |
 | Deploy account | `GC67STNSNGYZQ3LFGLROAQEJQLGLPURGJMUUWKRFKAIKARGDDY4KLVCQ` |
 
-The factory-created stream transaction proves the Level 4 inter-contract path: `StreamFactory -> StreamVault -> XLM SAC`, `StreamVault -> MockBlendPool`, and `StreamVault -> FLOW`. The withdrawal transaction proves the mock Blend redeem path and FLOW burn validation.
+The factory-created stream transaction proves the inter-contract path. It includes:
+
+- `StreamFactory -> StreamVault`
+- `StreamVault -> XLM SAC`
+- `StreamVault -> MockBlendPool`
+- `StreamVault -> FLOW`
+
+The withdrawal transaction proves the redeem path and FLOW burn validation.
+
+## Contract Interfaces
+
+### StreamVault
+
+| Function | Auth | Description |
+| --- | --- | --- |
+| `initialize(admin, blend_pool, flow_token, fee_bps)` | Admin | Enables Level 4 pool and FLOW integration. |
+| `create_stream(sender, recipient, token, rate_per_second, duration_seconds)` | Sender | Locks deposit, deposits to pool, mints FLOW, emits event. |
+| `withdraw(stream_id)` | Recipient | Burns FLOW, redeems from pool, pays claimable amount. |
+| `cancel(stream_id)` | Sender | Redeems remaining position, pays recipient owed, refunds sender. |
+| `get_claimable(stream_id)` | None | Returns current withdrawable amount. |
+| `get_stream(stream_id)` | None | Returns stored stream metadata. |
+| `get_stream_count()` | None | Returns next stream ID. |
+
+### StreamFactory
+
+| Function | Auth | Description |
+| --- | --- | --- |
+| `create_stream(sender, vault, recipient, token, rate_per_second, duration_seconds)` | Sender | Calls StreamVault and indexes stream ID. |
+| `get_streams_by_sender(sender)` | None | Lists sender stream IDs. |
+| `get_streams_by_recipient(recipient)` | None | Lists recipient stream IDs. |
+
+### FLOW Token
+
+| Function | Auth | Description |
+| --- | --- | --- |
+| `initialize(admin)` | One-time | Sets the vault/admin address. |
+| `mint(to, amount)` | Admin | Mints FLOW receipts. |
+| `burn(from, amount)` | Admin | Burns FLOW receipts. |
+| `transfer(from, to, amount)` | Holder | Transfers FLOW. |
+| `balance(id)` | None | Returns FLOW balance. |
+| `total_supply()` | None | Returns total FLOW supply. |
+| `name()`, `symbol()`, `decimals()` | None | Token metadata. |
+
+### MockBlendPool
+
+| Function | Auth | Description |
+| --- | --- | --- |
+| `deposit(vault, token, amount)` | Caller contract | Records vault position. |
+| `redeem(vault, token, btoken_amount)` | Caller contract | Reduces position and transfers token back to vault. |
+| `position(vault, token)` | None | Returns recorded position. |
+
+## Advanced Event Streaming
+
+The frontend polls Soroban contract events using cursor persistence:
+
+- Storage key: `splash_event_cursor`
+- Hook: `frontend/src/hooks/useContractEvents.ts`
+- Events surfaced: `StreamCreated`, `Withdrawal`, `StreamCancelled`
+- UI surface: dashboard activity feed
+- Failure mode: shows reconnecting state instead of silently failing
+
+## Production Readiness
+
+| Area | Implementation |
+| --- | --- |
+| CI/CD | GitHub Actions runs contract tests and frontend build on push/PR |
+| Performance | Vite manual vendor chunks split React, Stellar SDK, icons, and motion code |
+| Error tracking | Browser runtime errors and unhandled promise rejections stored under `splash_runtime_errors` |
+| Mobile | Header, hero, and dashboard layouts tested at mobile viewport; screenshot included |
+| Secrets | No private keys or mnemonics in frontend or repository |
+| Network | Testnet-only deployment and public testnet contract IDs |
+
+## Test Results
+
+Run from the repository root:
+
+```powershell
+Set-Location "F:\StellarMonthly\Splash\streamvault"
+docker run --rm `
+  -v "${PWD}:/work" `
+  -v "streamvault-cargo-registry:/usr/local/cargo/registry" `
+  -v "streamvault-cargo-git:/usr/local/cargo/git" `
+  -v "streamvault-target:/work/target" `
+  -w /work `
+  rust:1-bullseye `
+  /usr/local/cargo/bin/cargo test --workspace --target x86_64-unknown-linux-gnu
+```
+
+Verified result:
+
+```text
+running 11 tests
+test result: ok. 11 passed; 0 failed
+```
+
+Coverage includes:
+
+- Stream creation and stored metadata
+- Withdraw calculation
+- Cancel payout/refund split
+- Multiple withdrawals to completion
+- Reject cancellation after stream end
+- FLOW mint on create
+- FLOW burn on withdraw
+- Factory sender/recipient registry
+- Mock Blend deposit/redeem mechanics
 
 ## Local Development
 
@@ -197,7 +254,7 @@ Set-Location .\frontend
 npm install
 ```
 
-Create `frontend/.env.local` using `frontend/.env.example`:
+Create `frontend/.env.local` from `frontend/.env.example`:
 
 ```text
 VITE_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
@@ -222,105 +279,53 @@ Build the frontend:
 npm run build
 ```
 
-## Contract Tests
-
-Run the Docker test command from `streamvault/`:
-
-```powershell
-Set-Location "F:\StellarMonthly\Splash\streamvault"
-docker run --rm `
-  -v "${PWD}:/work" `
-  -v "streamvault-cargo-registry:/usr/local/cargo/registry" `
-  -v "streamvault-cargo-git:/usr/local/cargo/git" `
-  -v "streamvault-target:/work/target" `
-  -w /work `
-  rust:1-bullseye `
-  /usr/local/cargo/bin/cargo test --workspace --target x86_64-unknown-linux-gnu
-```
-
-Verified Docker result:
+## Repository Structure
 
 ```text
-running 11 tests
-test result: ok. 11 passed; 0 failed
+.
+|-- README.md
+|-- mobile-responsive.png
+|-- splash.png
+|-- Testcase.png
+|-- frontend
+|   |-- package.json
+|   |-- vite.config.ts
+|   `-- src
+|       |-- components
+|       |-- hooks
+|       |-- lib
+|       |-- pages
+|       `-- types
+`-- streamvault
+    |-- Cargo.toml
+    |-- scripts
+    |   `-- test-docker.ps1
+    `-- contracts
+        |-- streamvault
+        |-- streamfactory
+        |-- flowtoken
+        `-- mockblend
 ```
-
-The tests cover:
-
-- Stream creation and stored metadata.
-- Withdraw claimable calculation.
-- Cancel payout and refund split.
-- Multiple withdrawals reaching completion.
-- Rejection of cancellation after stream end.
-- FLOW minting on stream creation.
-- FLOW burning and yield-inclusive withdrawal.
-- Factory sender/recipient registry indexing.
-- Mock Blend deposit and redeem mechanics.
-
-## Manual Vercel Deployment
-
-Use these settings when deploying from the Vercel dashboard:
-
-1. Push the latest repository to GitHub.
-2. Open Vercel and choose **Add New Project**.
-3. Import `sukrit-89/Splash`.
-4. Set **Root Directory** to `frontend`.
-5. Keep **Framework Preset** as `Vite`.
-6. Set **Install Command** to `npm install` or leave the default.
-7. Set **Build Command** to `npm run build`.
-8. Set **Output Directory** to `dist`.
-9. Add these environment variables in Vercel Project Settings:
-
-```text
-VITE_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-VITE_STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
-VITE_STREAMVAULT_CONTRACT_ID=CBPNO56NJ4SI5UDJWVRLWVSCDTSMRDZCEPFNEPLRD4XTABYB6RUIBZQR
-VITE_STREAMFACTORY_CONTRACT_ID=CD6FF6PO7CM3U27JVGVGGLLN7XAUCDJMZGAHBLZQPVXKIRXC2LF3SW4R
-VITE_FLOW_TOKEN_CONTRACT_ID=CDSUPZQLP6FRNQMDYZP53QLOS3ITZLVOVJAAZ3RPBZ43K66532PQ5HHH
-VITE_BLEND_POOL_CONTRACT_ID=CCXLDFFM7326GE7UOEN7TW7FJW2KSBO34KDAUDMGLV6EZOEJFNW5Z7RO
-VITE_USDC_TOKEN_CONTRACT_ID=CBR7ZWCNWEX43SLWEQCMJBXZLBP5U46EV2DQ2EKYED65DJKL4SX6TRRF
-VITE_XLM_TOKEN_CONTRACT_ID=CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
-```
-
-10. Click **Deploy**.
-11. Open the production URL and verify:
-    - Landing page loads.
-    - Freighter connects on testnet.
-    - Create stream opens the wallet signing flow.
-    - Stream detail shows a live ticking claimable balance.
-12. Add the final Vercel URL to the **Submission Links** table above.
-
-## Demo Video Checklist
-
-Recommended 60-75 second flow:
-
-1. Show the landing page and StreamVault testnet positioning.
-2. Open the developer resources/footer briefly.
-3. Connect Freighter on Stellar testnet.
-4. Create a stream with a valid recipient, token, flow rate, and duration.
-5. Show Freighter signing and transaction confirmation.
-6. Show the stream detail page and live claimable balance ticking.
-7. Withdraw accrued funds or show the cancel action.
-8. Show the README/test evidence or terminal output with `11 passed`.
-
-For the Level 4 recording, use the newly deployed factory and FLOW addresses in Vercel env vars before creating the stream.
 
 ## Security Notes
 
-- No private keys or mnemonics are stored in the app.
-- Freighter handles transaction signing.
+- No private keys, mnemonics, or deployment secrets are stored in the app.
+- Freighter handles wallet connection and transaction signing.
 - Contract authorization uses Soroban `require_auth`.
-- Frontend environment variables contain only public testnet configuration.
-- This is testnet-only and not intended for production funds.
+- Frontend environment values are public testnet contract IDs only.
+- This is a testnet demo and is not intended for production funds.
 
-## Tech Stack
+## Submission Checklist
 
-| Layer | Technology |
+| Checklist item | Status |
 | --- | --- |
-| Contract | Rust, Soroban SDK |
-| Contract tests | `soroban_sdk::testutils`, Dockerized Rust |
-| Frontend | React, Vite, TypeScript |
-| Styling | Tailwind CSS |
-| Wallet | Freighter |
-| Stellar client | `@stellar/stellar-sdk`, Stellar RPC |
-| Deployment target | Vercel |
+| Public GitHub repository | Complete |
+| README with complete documentation | Complete |
+| Live demo link | Complete |
+| Mobile screenshot | Complete |
+| CI/CD badge or screenshot | Complete |
+| Contract addresses and transaction hashes | Complete |
+| Token or pool address | Complete |
+| 8+ meaningful commits | Complete |
+| Inter-contract call working | Complete |
+| Custom token or pool deployed | Complete |
