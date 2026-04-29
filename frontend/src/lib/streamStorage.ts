@@ -1,48 +1,127 @@
-import type { Stream } from "../types/stream";
+import {
+  ActivityEvent,
+  ActivityEventType,
+  Stream,
+  StreamRole,
+  StreamStatus,
+  TokenSymbol,
+  WithdrawalRecord,
+} from "../types/stream";
 
-const STREAM_INDEX_KEY = "streamflow:stream_ids";
+const streamStorageKey = "splash_streams";
+const withdrawalStorageKey = "splash_withdrawals";
+const activityStorageKey = "splash_activity";
 
-function streamKey(id: string) {
-  return `stream:${id}`;
-}
-
-function readIndex() {
+function readJson<T>(key: string, fallback: T): T {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(STREAM_INDEX_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
-    return [];
+    return fallback;
   }
 }
 
-function writeIndex(ids: string[]) {
-  window.localStorage.setItem(STREAM_INDEX_KEY, JSON.stringify(Array.from(new Set(ids))));
+function writeJson<T>(key: string, value: T) {
+  window.localStorage.setItem(key, JSON.stringify(value));
 }
 
-export function loadCachedStreams(address?: string | null) {
-  if (typeof window === "undefined") return [];
-
-  return readIndex()
-    .map((id) => {
-      try {
-        return JSON.parse(window.localStorage.getItem(streamKey(id)) || "null") as Stream | null;
-      } catch {
-        return null;
-      }
-    })
-    .filter((stream): stream is Stream => {
-      if (!stream) return false;
-      if (!address) return true;
-      return stream.sender === address || stream.recipient === address;
-    });
+export function readCachedStreams(): Stream[] {
+  return readJson<Stream[]>(streamStorageKey, []);
 }
 
-export function saveCachedStream(stream: Stream) {
-  const ids = readIndex();
-  writeIndex([stream.id, ...ids]);
-  window.localStorage.setItem(streamKey(stream.id), JSON.stringify(stream));
+export function writeCachedStreams(streams: Stream[]) {
+  writeJson(streamStorageKey, streams);
+  window.dispatchEvent(new Event("splash:streams"));
 }
 
-export function saveCachedStreams(streams: Stream[]) {
-  streams.forEach(saveCachedStream);
+export function upsertCachedStream(stream: Stream) {
+  const streams = readCachedStreams();
+  const next = [stream, ...streams.filter((item) => item.id !== stream.id)];
+  writeCachedStreams(next);
+}
+
+export function updateCachedStream(streamId: string, patch: Partial<Stream>) {
+  const next = readCachedStreams().map((stream) =>
+    stream.id === streamId ? { ...stream, ...patch } : stream,
+  );
+  writeCachedStreams(next);
+}
+
+export function readCachedWithdrawals(): WithdrawalRecord[] {
+  return readJson<WithdrawalRecord[]>(withdrawalStorageKey, []);
+}
+
+export function addCachedWithdrawal(withdrawal: WithdrawalRecord) {
+  const next = [withdrawal, ...readCachedWithdrawals()];
+  writeJson(withdrawalStorageKey, next);
+  window.dispatchEvent(new Event("splash:streams"));
+}
+
+export function readCachedActivity(): ActivityEvent[] {
+  return readJson<ActivityEvent[]>(activityStorageKey, []);
+}
+
+export function addCachedActivity(event: ActivityEvent) {
+  const next = [event, ...readCachedActivity()];
+  writeJson(activityStorageKey, next);
+  window.dispatchEvent(new Event("splash:streams"));
+}
+
+export function roleFor(stream: Stream, walletAddress: string | null): StreamRole {
+  if (walletAddress && stream.recipient === walletAddress) {
+    return StreamRole.Recipient;
+  }
+
+  return StreamRole.Sender;
+}
+
+export function makeActivity(
+  type: ActivityEventType,
+  stream: Stream,
+  address: string,
+  txHash: string,
+  amount?: number,
+): ActivityEvent {
+  return {
+    id: txHash,
+    type,
+    streamId: stream.id,
+    address,
+    amount,
+    token: stream.token,
+    timestamp: Math.floor(Date.now() / 1000),
+    ledger: 0,
+  };
+}
+
+export function tokenFromContract(
+  tokenAddress: string,
+  usdcAddress: string,
+  xlmAddress: string,
+): TokenSymbol {
+  if (tokenAddress === xlmAddress) {
+    return TokenSymbol.XLM;
+  }
+  if (tokenAddress === usdcAddress) {
+    return TokenSymbol.USDC;
+  }
+
+  return TokenSymbol.USDC;
+}
+
+export function statusFromContract(status: unknown): StreamStatus {
+  const text = String(
+    typeof status === "object" && status && "tag" in status
+      ? (status as { tag: unknown }).tag
+      : status,
+  ).toLowerCase();
+
+  if (text.includes("cancel")) {
+    return StreamStatus.Cancelled;
+  }
+  if (text.includes("complete")) {
+    return StreamStatus.Completed;
+  }
+
+  return StreamStatus.Active;
 }

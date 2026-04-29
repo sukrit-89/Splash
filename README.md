@@ -1,118 +1,101 @@
 # Splash
 
-![Splash protocol preview](splash.png)
+Splash is a Level 3 Stellar Soroban payment streaming dApp. A sender locks funds in a deployed `StreamVault` contract, the recipient earns value every second, and either party can complete the simple stream lifecycle through a React + Freighter frontend.
 
-**Splash** is a Level 3 Stellar Soroban mini-dApp for real-time token payment streams. The MVP centers on a deployed `StreamVault` contract that lets a sender lock funds, stream value to a recipient over time, let the recipient withdraw accrued funds, and let the sender cancel an active stream with the unearned balance refunded.
+![Splash protocol preview](splash.png)
 
 ## Submission Links
 
-| Requirement | Link / Evidence |
-|---|---|
-| Public GitHub repository | <https://github.com/sukrit-89/Splash> |
-| Live demo | Add the Vercel or Netlify URL after deployment |
-| Demo video | Add the 1-minute Loom or YouTube URL after recording |
+| Item | Link / Evidence |
+| --- | --- |
+| Public repository | <https://github.com/sukrit-89/Splash> |
+| Live demo | Add your Vercel production URL here after deployment |
+| Demo video | Add your Loom or YouTube URL here after recording |
 | Test output screenshot | [Testcase.png](Testcase.png) |
-| Testnet `StreamVault` contract | `CCE2PSOOTQWLNCY3RFJOSI7RNIRVQFE64L33KJNBXTXOW63YVRRQLFA6` |
-| Stellar testnet RPC | `https://soroban-testnet.stellar.org` |
+| Contract tests | `5 passed; 0 failed` |
+| Testnet StreamVault | `CCE2PSOOTQWLNCY3RFJOSI7RNIRVQFE64L33KJNBXTXOW63YVRRQLFA6` |
 
-## Level 3 Checklist
+## What It Does
 
-| Requirement | Status |
-|---|---|
-| Mini-dApp fully functional | Implemented with React, Freighter wallet connection, StreamVault contract calls, local cache, loading states, stream creation, dashboard, withdraw, and cancel flows |
-| Minimum 3 tests passing | Passed, with 5 Soroban contract tests |
-| README complete | This README documents the product, architecture, contract interface, setup, tests, deployment config, and demo checklist |
-| Demo video recorded | Pending recording |
-| Minimum 3+ meaningful commits | Satisfied, repository history contains more than 3 implementation commits |
-| Public GitHub repository | Pushed to `origin/main` |
-| Test screenshot in README | Included below |
+Splash turns a fixed payment deposit into a real-time stream.
 
-## Test Evidence
+1. The sender creates a stream with recipient, token, rate per second, and duration.
+2. The contract locks the full stream deposit from the sender.
+3. The recipient's claimable amount grows as ledger time passes.
+4. The recipient can withdraw accrued funds.
+5. The sender can cancel early, paying the recipient what has accrued and refunding the unstreamed balance.
 
-The Level 3 requirement asks for a screenshot showing at least 3 passing tests. The current contract suite passes 5 tests.
+This repository is intentionally scoped to Level 3:
 
-![StreamVault test output showing 5 passing tests](Testcase.png)
+- Single Soroban `StreamVault` contract.
+- React + Vite frontend.
+- Freighter wallet signing.
+- Stellar testnet deployment.
+- Local stream cache for created streams.
+- Five passing Soroban contract tests.
 
-Latest verified result:
+Level 4 features such as `StreamFactory`, Blend yield integration, `FLOW` receipt tokens, event indexing, mobile polish, and CI/CD are not part of this Level 3 implementation.
+
+## Live Formula
+
+The product's core behavior is the claimable balance formula:
 
 ```text
-running 5 tests
-test result: ok. 5 passed; 0 failed
+total_deposit = rate_per_second * duration_seconds
+end_timestamp = start_timestamp + duration_seconds
+elapsed = min(current_timestamp, end_timestamp) - start_timestamp
+accrued = elapsed * rate_per_second
+claimable = min(accrued - already_withdrawn, total_deposit - already_withdrawn)
 ```
 
-## What Splash Does
+When the recipient withdraws:
 
-Most payments move in batches: weekly payroll, monthly invoices, delayed contractor payouts, or milestone escrow. Splash turns payment into a live flow. The sender deposits the full stream amount into a Soroban contract, and the recipient earns funds second by second until the stream ends, is withdrawn, or is cancelled.
+```text
+already_withdrawn = already_withdrawn + claimable
+```
 
-Level 3 intentionally keeps the system focused:
+When the sender cancels:
 
-- One `StreamVault` Soroban contract
-- One deployed testnet contract address
-- One React mini-dApp
-- Freighter wallet signing
-- Real contract transactions through Stellar RPC
-- Local stream metadata caching for fast page reloads
-- Tests proving core create, withdraw, completion, and cancel behavior
-
-Level 4 items such as `StreamFactory`, Blend yield, `FLOW` token receipts, richer event indexing, mobile polish, and CI/CD are documented in [PRD.MD](PRD.MD) but are outside this Level 3 submission.
+```text
+recipient_owed = claimable at cancel time
+sender_refund = total_deposit - already_withdrawn - recipient_owed
+```
 
 ## Architecture
 
 ```text
-User wallet
+Freighter wallet
    |
-   | Freighter signs Soroban transactions
+   | signs prepared Soroban transactions
    v
 React + Vite frontend
    |
-   | @stellar/stellar-sdk over Stellar RPC
+   | Stellar RPC simulation, assembly, submission, polling
    v
 StreamVault contract on Stellar testnet
    |
-   | invokes Stellar Asset Contract transfer
+   | token transfer calls
    v
-XLM SAC or demo USDC SAC
+Stellar Asset Contract token
 ```
 
-### Frontend Responsibilities
-
-- Connect to Freighter and display the active wallet address.
-- Validate the stream creation form before signing.
-- Convert user-facing token amounts into smallest-unit contract values.
-- Submit `create_stream`, `withdraw`, and `cancel` transactions.
-- Show loading and confirmation states while transactions are pending.
-- Cache stream metadata in `localStorage` so the dashboard opens quickly after refresh.
-- Show a live ticking claimable balance, backed by contract data.
-
-### Contract Responsibilities
-
-- Require sender authorization when creating or cancelling a stream.
-- Require recipient authorization when withdrawing.
-- Lock the full stream deposit in the contract.
-- Calculate claimable funds from ledger time, rate, and prior withdrawals.
-- Prevent overpayment beyond the deposited amount.
-- Refund unearned funds to the sender when cancelled before the end time.
-- Mark streams as active, completed, or cancelled.
-
-## Repository Layout
+## Repository Structure
 
 ```text
 .
 |-- README.md
-|-- PRD.MD
-|-- AGENTS.md
-|-- splash.png
 |-- Testcase.png
+|-- formulas.md
 |-- frontend
-|   |-- index.html
 |   |-- package.json
-|   |-- public
-|   `-- src
-|       |-- components
-|       |-- hooks
-|       |-- lib
-|       |-- pages
-|       `-- types
+|   |-- .env.example
+|   |-- src
+|   |   |-- components
+|   |   |-- hooks
+|   |   |-- lib
+|   |   |-- pages
+|   |   `-- types
+|   `-- vite.config.ts
 `-- streamvault
     |-- Cargo.toml
     |-- README.md
@@ -121,7 +104,6 @@ XLM SAC or demo USDC SAC
     `-- contracts
         `-- streamvault
             |-- Cargo.toml
-            |-- Makefile
             `-- src
                 |-- lib.rs
                 `-- test.rs
@@ -129,60 +111,29 @@ XLM SAC or demo USDC SAC
 
 ## Contract Interface
 
-| Function | Auth | Parameters | Returns | Description |
-|---|---|---|---|---|
-| `create_stream` | Sender signs | `sender`, `recipient`, `token`, `rate_per_second`, `duration_seconds` | `stream_id: u64` | Locks `rate_per_second * duration_seconds` from the sender and stores stream metadata. |
-| `withdraw` | Recipient signs | `stream_id` | `amount: i128` | Transfers currently claimable funds to the recipient and completes the stream when fully withdrawn. |
-| `cancel` | Sender signs | `stream_id` | `(recipient_owed, sender_refund)` | Before stream end, pays earned funds to the recipient and refunds unearned funds to the sender. |
-| `get_claimable` | None | `stream_id` | `i128` | Returns currently withdrawable funds without mutating state. |
-| `get_stream` | None | `stream_id` | `Stream` | Returns sender, recipient, token, rate, deposit, withdrawn amount, timestamps, and status. |
-| `get_stream_count` | None | none | `u64` | Returns the next stream id, useful for discovery and post-create lookup. |
-
-## Contract Data Model
-
-The Level 3 contract stores one compact stream record per `stream_id`.
-
-| Field | Meaning |
-|---|---|
-| `sender` | Wallet that funds the stream |
-| `recipient` | Wallet allowed to withdraw accrued funds |
-| `token` | Soroban token contract address, such as native XLM SAC or demo USDC SAC |
-| `rate_per_second` | Smallest token units earned each second |
-| `total_deposit` | Full amount locked at stream creation |
-| `already_withdrawn` | Amount already paid to the recipient |
-| `start_timestamp` | Ledger timestamp at stream creation |
-| `end_timestamp` | `start_timestamp + duration_seconds` |
-| `status` | `Active`, `Cancelled`, or `Completed` |
-
-Core calculation:
-
-```text
-claimable = min(now, end_timestamp) - start_timestamp
-claimable = claimable * rate_per_second - already_withdrawn
-claimable = min(claimable, total_deposit - already_withdrawn)
-```
+| Function | Auth | Description |
+| --- | --- | --- |
+| `create_stream(sender, recipient, token, rate_per_second, duration_seconds)` | Sender | Locks the stream deposit and stores stream metadata. |
+| `withdraw(stream_id)` | Recipient | Transfers currently claimable funds to the recipient. |
+| `cancel(stream_id)` | Sender | Pays accrued funds to the recipient and refunds the unstreamed amount. |
+| `get_claimable(stream_id)` | None | Returns the currently withdrawable amount without mutating state. |
+| `get_stream(stream_id)` | None | Returns all stream metadata. |
+| `get_stream_count()` | None | Returns the next stream id. |
 
 ## Testnet Configuration
 
 | Item | Value |
-|---|---|
+| --- | --- |
 | Network | Stellar testnet |
-| Passphrase | `Test SDF Network ; September 2015` |
+| Network passphrase | `Test SDF Network ; September 2015` |
 | RPC URL | `https://soroban-testnet.stellar.org` |
-| StreamVault contract | `CCE2PSOOTQWLNCY3RFJOSI7RNIRVQFE64L33KJNBXTXOW63YVRRQLFA6` |
+| StreamVault | `CCE2PSOOTQWLNCY3RFJOSI7RNIRVQFE64L33KJNBXTXOW63YVRRQLFA6` |
 | Native XLM SAC | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` |
 | Demo USDC SAC | `CBR7ZWCNWEX43SLWEQCMJBXZLBP5U46EV2DQ2EKYED65DJKL4SX6TRRF` |
 
-The demo USDC value is a testnet asset contract used for this belt submission. It is not Circle production USDC.
+The demo USDC contract is for testnet demonstration only. It is not production Circle USDC.
 
-## Local Setup
-
-Clone the repository:
-
-```powershell
-git clone https://github.com/sukrit-89/Splash.git
-Set-Location Splash
-```
+## Local Development
 
 Install frontend dependencies:
 
@@ -191,7 +142,7 @@ Set-Location .\frontend
 npm install
 ```
 
-Create `frontend/.env.local` from `frontend/.env.example`:
+Create `frontend/.env.local` using `frontend/.env.example`:
 
 ```text
 VITE_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
@@ -213,32 +164,9 @@ Build the frontend:
 npm run build
 ```
 
-## Wallet And Token Notes
+## Contract Tests
 
-- Install Freighter and switch it to Stellar testnet.
-- Fund testnet accounts with Friendbot before creating streams.
-- The app signs transactions in the browser through Freighter.
-- `XLM` in the token picker means the Soroban Stellar Asset Contract for native XLM.
-- The demo USDC contract is for testing the dApp flow only.
-- Do not commit private keys, funded secrets, mnemonics, or `.env.local`.
-
-## Testing
-
-Run contract tests from the `streamvault` workspace:
-
-```powershell
-Set-Location .\streamvault
-cargo test -p streamvault
-```
-
-On Windows, the Docker test path is more consistent:
-
-```powershell
-Set-Location .\streamvault
-.\scripts\test-docker.ps1
-```
-
-Equivalent Docker command:
+Run the Docker test command from `streamvault/`:
 
 ```powershell
 Set-Location "F:\StellarMonthly\Splash\streamvault"
@@ -252,83 +180,82 @@ docker run --rm `
   /usr/local/cargo/bin/cargo test -p streamvault --target x86_64-unknown-linux-gnu
 ```
 
-The current Level 3 suite covers:
-
-| Test | Purpose |
-|---|---|
-| `test_create_stream_stores_correctly` | Verifies stream creation and stored metadata |
-| `test_withdraw_calculates_correctly` | Verifies elapsed-time claimable calculation |
-| `test_cancel_returns_correct_split` | Verifies recipient payout and sender refund on cancellation |
-| `test_multiple_withdrawals_reach_completion` | Verifies multiple withdrawals accumulate to completion |
-| `test_cancel_after_end_rejects_completed_stream` | Verifies completed streams cannot be cancelled |
-
-## Contract Build
-
-Build optimized WASM:
-
-```powershell
-Set-Location .\streamvault
-stellar contract build --package streamvault
-```
-
-Expected output:
+Latest verified result:
 
 ```text
-streamvault/target/wasm32v1-none/release/streamvault.wasm
+running 5 tests
+test result: ok. 5 passed; 0 failed
 ```
 
-## Deployment
+The tests cover:
 
-Deploy StreamVault to Stellar testnet:
+- Stream creation and stored metadata.
+- Withdraw claimable calculation.
+- Cancel payout and refund split.
+- Multiple withdrawals reaching completion.
+- Rejection of cancellation after stream end.
 
-```bash
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/streamvault.wasm \
-  --source streamflow-dev \
-  --network testnet
+## Manual Vercel Deployment
+
+Use these settings when deploying from the Vercel dashboard:
+
+1. Push the latest repository to GitHub.
+2. Open Vercel and choose **Add New Project**.
+3. Import `sukrit-89/Splash`.
+4. Set **Root Directory** to `frontend`.
+5. Keep **Framework Preset** as `Vite`.
+6. Set **Install Command** to `npm install` or leave the default.
+7. Set **Build Command** to `npm run build`.
+8. Set **Output Directory** to `dist`.
+9. Add these environment variables in Vercel Project Settings:
+
+```text
+VITE_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+VITE_STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+VITE_STREAMVAULT_CONTRACT_ID=CCE2PSOOTQWLNCY3RFJOSI7RNIRVQFE64L33KJNBXTXOW63YVRRQLFA6
+VITE_USDC_TOKEN_CONTRACT_ID=CBR7ZWCNWEX43SLWEQCMJBXZLBP5U46EV2DQ2EKYED65DJKL4SX6TRRF
+VITE_XLM_TOKEN_CONTRACT_ID=CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
 ```
 
-Deploy the frontend to Vercel or Netlify from the `frontend/` folder and set the same `VITE_*` environment variables from the setup section. After deployment, update the live demo row in this README with the production URL.
+10. Click **Deploy**.
+11. Open the production URL and verify:
+    - Landing page loads.
+    - Freighter connects on testnet.
+    - Create stream opens the wallet signing flow.
+    - Stream detail shows a live ticking claimable balance.
+12. Add the final Vercel URL to the **Submission Links** table above.
 
 ## Demo Video Checklist
 
-Record a 1-minute video that shows:
+Recommended 60-75 second flow:
 
-1. Opening the deployed frontend.
-2. Connecting Freighter on testnet.
-3. Creating a stream with XLM or demo USDC.
-4. Seeing the dashboard and live ticking claimable balance.
-5. Withdrawing accrued funds or cancelling the stream.
-6. Showing the success confirmation.
+1. Show the landing page and StreamVault testnet positioning.
+2. Open the developer resources/footer briefly.
+3. Connect Freighter on Stellar testnet.
+4. Create a stream with a valid recipient, token, flow rate, and duration.
+5. Show Freighter signing and transaction confirmation.
+6. Show the stream detail page and live claimable balance ticking.
+7. Withdraw accrued funds or show the cancel action.
+8. Show the README/test evidence or terminal output with `5 passed`.
 
-After uploading the video, update the demo video row in this README.
+Avoid claiming Level 4 features as implemented. Blend, factory streams, and FLOW receipts are future scope.
+
+## Security Notes
+
+- No private keys or mnemonics are stored in the app.
+- Freighter handles transaction signing.
+- Contract authorization uses Soroban `require_auth`.
+- Frontend environment variables contain only public testnet configuration.
+- This is testnet-only and not intended for production funds.
 
 ## Tech Stack
 
 | Layer | Technology |
-|---|---|
-| Smart contract | Rust, Soroban SDK |
-| Contract tests | `soroban_sdk::testutils`, Dockerized Rust runner |
+| --- | --- |
+| Contract | Rust, Soroban SDK |
+| Contract tests | `soroban_sdk::testutils`, Dockerized Rust |
 | Frontend | React, Vite, TypeScript |
 | Styling | Tailwind CSS |
 | Wallet | Freighter |
-| Stellar client | `@stellar/stellar-sdk` with Stellar RPC |
-| Cache | Browser `localStorage` |
-| Deployment target | Soroban testnet contract and Vercel or Netlify frontend |
-
-## Security Notes
-
-- Contract authorization uses Soroban `require_auth`.
-- The frontend never stores secret keys.
-- `.env.local` is ignored and must stay out of version control.
-- Testnet addresses and contracts are safe to document; private keys are not.
-- The Level 3 implementation avoids Level 4 yield and factory assumptions.
-
-## Product Direction
-
-Splash is being built in small, verifiable increments:
-
-1. **Level 3:** prove the core StreamVault primitive with a working mini-dApp, tests, docs, and testnet deployment.
-2. **Level 4:** add factory-based stream discovery, Blend integration, `FLOW` token receipts, event indexing, mobile polish, and CI/CD.
-
-The full product plan and scope boundaries are documented in [PRD.MD](PRD.MD).
+| Stellar client | `@stellar/stellar-sdk`, Stellar RPC |
+| Deployment target | Vercel |

@@ -1,26 +1,58 @@
-export type StreamStatus = "active" | "cancelled" | "completed";
+export enum StreamStatus {
+  Active = "active",
+  Pending = "pending",
+  Cancelled = "cancelled",
+  Completed = "completed",
+  Failed = "failed",
+}
 
-export type Stream = {
+export enum TokenSymbol {
+  USDC = "USDC",
+  XLM = "XLM",
+}
+
+export enum StreamRole {
+  Sender = "sender",
+  Recipient = "recipient",
+}
+
+export interface Stream {
   id: string;
-  streamId?: number;
-  role: "sender" | "recipient";
   sender: string;
   recipient: string;
-  token: "USDC" | "XLM";
-  tokenContractId?: string;
-  ratePerSecond: number;
+  token: TokenSymbol;
   totalDeposit: number;
-  withdrawn: number;
-  startTime: number;
-  endTime: number;
+  ratePerSecond: number;
+  alreadyWithdrawn: number;
+  lifetimeReceived: number;
+  startTimestamp: number;
+  endTimestamp: number;
+  createdAt: number;
   status: StreamStatus;
-  lastSyncedAt?: number;
-  syncedClaimable?: number;
-  claimableSyncedAt?: number;
-};
+  role: StreamRole;
+}
 
-export type ToastMessage = {
-  id: number;
-  title: string;
-  body?: string;
-};
+export enum ActivityEventType {
+  StreamCreated = "StreamCreated",
+  Withdrawal = "Withdrawal",
+  Cancelled = "Cancelled",
+}
+
+export interface ActivityEvent {
+  id: string;
+  type: ActivityEventType;
+  streamId: string;
+  address: string;
+  amount?: number;
+  token: TokenSymbol;
+  timestamp: number;
+  ledger: number;
+}
+
+export interface WithdrawalRecord {
+  id: string;
+  timestamp: number;
+  amount: number;
+  token: TokenSymbol;
+  txHash: string;
+}

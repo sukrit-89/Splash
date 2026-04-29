@@ -57,7 +57,7 @@ target/wasm32v1-none/release/streamvault.wasm
 Generate and fund a testnet identity once:
 
 ```bash
-stellar keys generate --global streamflow-dev --network testnet --fund
+stellar keys generate --global splash-dev --network testnet --fund
 ```
 
 Deploy StreamVault:
@@ -65,7 +65,7 @@ Deploy StreamVault:
 ```bash
 stellar contract deploy \
 	--wasm target/wasm32v1-none/release/streamvault.wasm \
-	--source streamflow-dev \
+	--source splash-dev \
 	--network testnet
 ```
 
@@ -85,7 +85,7 @@ Create stream:
 ```bash
 stellar contract invoke \
 	--id <CONTRACT_ID> \
-	--source streamflow-dev \
+	--source splash-dev \
 	--network testnet \
 	-- \
 	create_stream \
@@ -101,7 +101,7 @@ Read claimable for stream 0:
 ```bash
 stellar contract invoke \
 	--id <CONTRACT_ID> \
-	--source streamflow-dev \
+	--source splash-dev \
 	--network testnet \
 	-- \
 	get_claimable \
@@ -113,7 +113,7 @@ Withdraw for stream 0 (recipient must authorize):
 ```bash
 stellar contract invoke \
 	--id <CONTRACT_ID> \
-	--source streamflow-dev \
+	--source splash-dev \
 	--network testnet \
 	-- \
 	withdraw \
@@ -125,7 +125,7 @@ Cancel stream 0 (sender must authorize):
 ```bash
 stellar contract invoke \
 	--id <CONTRACT_ID> \
-	--source streamflow-dev \
+	--source splash-dev \
 	--network testnet \
 	-- \
 	cancel \
