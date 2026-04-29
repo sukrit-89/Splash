@@ -12,7 +12,6 @@ Splash is a Stellar Soroban payment streaming dApp. It lets a sender lock a fixe
 | --- | --- |
 | Live demo | <https://splash-self.vercel.app/> |
 | Repository | <https://github.com/sukrit-89/Splash> |
-| Demo video | <https://youtu.be/ziJpZYw0jEw> |
 | Latest CI run | <https://github.com/sukrit-89/Splash/actions/runs/25113438677> |
 
 ## Submission Evidence
@@ -22,7 +21,8 @@ Splash is a Stellar Soroban payment streaming dApp. It lets a sender lock a fixe
 | Public GitHub repository | <https://github.com/sukrit-89/Splash> |
 | Live deployed app | <https://splash-self.vercel.app/> |
 | CI/CD running | GitHub Actions badge above and latest green run linked above |
-| Mobile responsive screenshot | [mobile-responsive.png](mobile-responsive.png) |
+| Mobile responsive screenshot | Embedded below |
+| Dashboard and stream detail screenshots | Embedded below |
 | Contract test evidence | [Testcase.png](Testcase.png), plus Docker result `11 passed; 0 failed` |
 | Minimum 8+ meaningful commits | Repository history contains 20+ commits |
 | Inter-contract calls | Factory-created stream tx `cf382...7abe`; withdrawal tx `f0b4...913b` |
@@ -42,24 +42,35 @@ Splash is a Stellar Soroban payment streaming dApp. It lets a sender lock a fixe
 | Production readiness | Manual build/deploy | GitHub Actions CI, vendor chunk splitting, runtime error capture |
 | Tests | 5 contract tests | 11 Dockerized workspace tests across all contracts |
 
-## Screenshots To Include For Review
+## Reviewer Screenshots
 
-Use these in the submission or demo evidence:
+These screenshots are embedded directly so reviewers can verify the submission without opening separate image links.
 
-1. **Desktop product preview:** [splash.png](splash.png)  
-   Shows the main visual identity and live-streaming product moment.
+### Desktop Product Preview
 
-2. **Mobile responsive proof:** [mobile-responsive.png](mobile-responsive.png)  
-   Shows the app at a mobile viewport with Level 4 messaging and no layout overflow.
+![Splash desktop product preview](splash.png)
 
-3. **Contract test proof:** [Testcase.png](Testcase.png)  
-   Shows prior test output evidence. The current Docker suite now verifies 11 tests.
+### Dashboard / Multiple Streams
 
-4. **CI/CD proof:** the README badge or latest run page  
-   <https://github.com/sukrit-89/Splash/actions/runs/25113438677>
+![Splash dashboard showing active streams and activity feed](image1.png)
 
-5. **Optional demo screenshots:** Dashboard and stream detail after wallet connection  
-   These are useful in a slide deck or demo video, but the required README evidence is already covered by the mobile screenshot and CI badge.
+### Stream Detail / FLOW And Pool Position
+
+![Splash stream detail showing FLOW and Blend position](image2.png)
+
+### Stream Controls / Live Activity
+
+![Splash stream controls and live activity screen](image3.png)
+
+### Mobile Responsive View
+
+![Splash mobile responsive view](mobile-responsive.jpeg)
+
+### Contract Test Evidence
+
+![Splash contract test evidence](Testcase.png)
+
+The CI/CD proof is the GitHub Actions badge at the top of this README and the latest green run linked in Review Links.
 
 ## Product Flow
 
@@ -284,7 +295,10 @@ npm run build
 ```text
 .
 |-- README.md
-|-- mobile-responsive.png
+|-- image1.png
+|-- image2.png
+|-- image3.png
+|-- mobile-responsive.jpeg
 |-- splash.png
 |-- Testcase.png
 |-- frontend
