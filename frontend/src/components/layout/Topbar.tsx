@@ -4,7 +4,11 @@ import { SplashLogo } from "../ui/SplashLogo";
 export function Topbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 flex h-[60px] items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-base)] px-4 sm:px-6 lg:px-8">
-      <a href="/">
+      <a
+        aria-label="Go to Splash home"
+        className="flex h-10 items-center rounded-md px-2 transition-colors duration-150 hover:bg-[var(--bg-hover)]"
+        href="/"
+      >
         <SplashLogo />
       </a>
       <div className="hidden items-center gap-4 sm:flex">
